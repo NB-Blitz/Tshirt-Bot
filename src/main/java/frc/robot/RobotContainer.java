@@ -1,0 +1,232 @@
+// Copyright (c) 2021-2026 Littleton Robotics
+// http://github.com/Mechanical-Advantage
+//
+// Use of this source code is governed by a BSD
+// license that can be found in the LICENSE file
+// at the root directory of this project.
+
+package frc.robot;
+
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.GenericHID;
+import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.button.CommandJoystick;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.commands.DriveCommands;
+import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.DriveConstants;
+import frc.robot.subsystems.drive.GyroIO;
+import frc.robot.subsystems.drive.GyroIONavX;
+import frc.robot.subsystems.drive.GyroIOSim;
+import frc.robot.subsystems.drive.ModuleIO;
+import frc.robot.subsystems.drive.ModuleIOSim;
+import frc.robot.subsystems.drive.ModuleIOSparkMax;
+import frc.robot.subsystems.vision.Vision;
+import frc.robot.subsystems.vision.VisionConstants;
+import frc.robot.subsystems.vision.VisionIO;
+import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
+import org.ironmaple.simulation.SimulatedArena;
+import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+import org.littletonrobotics.junction.Logger;
+
+/**
+ * This class is where the bulk of the robot should be declared. Since Command-based is a
+ * "declarative" paradigm, very little robot logic should actually be handled in the {@link Robot}
+ * periodic methods (other than the scheduler calls). Instead, the structure of the robot (including
+ * subsystems, commands, and button mappings) should be declared here.
+ */
+public class RobotContainer {
+  // Subsystems
+  private final Drive drive;
+  private final Vision vision;
+
+  private SwerveDriveSimulation driveSimulation = null;
+
+  private final boolean useXboxControllerDrive = true;
+
+  // Controllers
+  private final CommandJoystick joystick;
+  private final CommandXboxController driveXboxController;
+  // private final CommandGenericHID driverStation = new CommandGenericHID(2);
+
+  /** The container for the robot. Contains subsystems, OI devices, and commands. */
+  public RobotContainer() {
+    if (useXboxControllerDrive) {
+      driveXboxController = new CommandXboxController(0);
+      joystick = null;
+    } else {
+      joystick = new CommandJoystick(0);
+      driveXboxController = null;
+    }
+
+    switch (Constants.currentMode) {
+      case REAL:
+        // Real robot, instantiate hardware IO implementations
+        drive =
+            new Drive(
+                new GyroIONavX(),
+                new ModuleIOSparkMax(0),
+                new ModuleIOSparkMax(1),
+                new ModuleIOSparkMax(2),
+                new ModuleIOSparkMax(3),
+                (pose) -> {});
+        vision = new Vision(drive::addVisionMeasurement, new VisionIO() {}, new VisionIO() {});
+        // new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
+        // new VisionIOPhotonVision(
+        //    VisionConstants.camera1Name, VisionConstants.robotToCamera1));
+        break;
+
+      case SIM:
+        // create a maple-sim swerve drive simulation instance
+        this.driveSimulation =
+            new SwerveDriveSimulation(
+                DriveConstants.mapleSimConfig, new Pose2d(3, 3, new Rotation2d()));
+        // add the simulated drivetrain to the simulation field
+        SimulatedArena.getInstance().addDriveTrainSimulation(driveSimulation);
+        // Sim robot, instantiate physics sim IO implementations
+        drive =
+            new Drive(
+                new GyroIOSim(driveSimulation.getGyroSimulation()),
+                new ModuleIOSim(driveSimulation.getModules()[0]),
+                new ModuleIOSim(driveSimulation.getModules()[1]),
+                new ModuleIOSim(driveSimulation.getModules()[2]),
+                new ModuleIOSim(driveSimulation.getModules()[3]),
+                driveSimulation::setSimulationWorldPose);
+        vision =
+            new Vision(
+                drive::addVisionMeasurement,
+                new VisionIOPhotonVisionSim(
+                    VisionConstants.camera0Name,
+                    VisionConstants.robotToCamera0,
+                    driveSimulation::getSimulatedDriveTrainPose),
+                new VisionIOPhotonVisionSim(
+                    VisionConstants.camera1Name,
+                    VisionConstants.robotToCamera1,
+                    driveSimulation::getSimulatedDriveTrainPose));
+        break;
+
+      default:
+        // Replayed robot, disable IO implementations
+        drive =
+            new Drive(
+                new GyroIO() {},
+                new ModuleIO() {},
+                new ModuleIO() {},
+                new ModuleIO() {},
+                new ModuleIO() {},
+                (pose) -> {});
+        // Replayed robot, disable IO implementations
+        // (Use same number of dummy implementations as the real robot)
+        vision = new Vision(drive::addVisionMeasurement, new VisionIO() {}, new VisionIO() {});
+        break;
+    }
+
+    SmartDashboard.putBoolean("Demo Mode", false);
+    Trigger demoModeToggle = new Trigger(() -> SmartDashboard.getBoolean("Demo Mode", false));
+    demoModeToggle.onTrue(Commands.runOnce(() -> drive.demoMode = true, drive));
+    demoModeToggle.onFalse(Commands.runOnce(() -> drive.demoMode = false, drive));
+
+    // Set up SysId routines
+    // autoChooser.addOption(
+    // "Drive Wheel Radius Characterization", DriveCommands.wheelRadiusCharacterization(drive));
+    // autoChooser.addOption(
+    // "Drive Simple FF Characterization", DriveCommands.feedforwardCharacterization(drive));
+    // autoChooser.addOption(
+    //     "Drive SysId (Quasistatic Forward)",
+    //     drive.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+    // autoChooser.addOption(
+    //     "Drive SysId (Quasistatic Reverse)",
+    //     drive.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+    // autoChooser.addOption(
+    //     "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
+    // autoChooser.addOption(
+    //     "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+
+    // Configure the button bindings
+    configureButtonBindings();
+  }
+
+  /**
+   * Use this method to define your button->command mappings. Buttons can be created by
+   * instantiating a {@link GenericHID} or one of its subclasses ({@link
+   * edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then passing it to a {@link
+   * edu.wpi.first.wpilibj2.command.button.JoystickButton}.
+   */
+  private void configureButtonBindings() {
+    // Default Commands, normal field-relative drive
+    if (useXboxControllerDrive) {
+      drive.setDefaultCommand(
+          DriveCommands.joystickDrive(
+              drive,
+              () -> -1 * driveXboxController.getLeftY(),
+              () -> -1 * driveXboxController.getLeftX(),
+              () -> -1 * driveXboxController.getRightX(),
+              () -> 1)); // 0.5 * (1 + -driveXboxController.getRightTriggerAxis())));
+
+      // Reset gyro / odometry
+      final Runnable resetGyro =
+          Constants.currentMode == Constants.Mode.SIM
+              ? () ->
+                  drive.setPose(
+                      driveSimulation
+                          .getSimulatedDriveTrainPose()) // reset odometry to actual robot pose
+              // during simulation
+              : () -> drive.resetGyro(); // zero gyro
+      driveXboxController
+          .povDown()
+          .onTrue(Commands.runOnce(resetGyro, drive).ignoringDisable(true));
+
+      // Switch to X pattern when X button is pressed
+      driveXboxController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
+
+    } else {
+      drive.setDefaultCommand(
+          DriveCommands.joystickDrive(
+              drive,
+              () -> -1 * joystick.getY(),
+              () -> -1 * joystick.getX(),
+              () -> -1 * joystick.getZ(),
+              () -> 0.5 * (1 + -joystick.getRawAxis(3))));
+
+      // Reset gyro to 0° when B button is pressed
+      joystick
+          .button(7)
+          .onTrue(Commands.runOnce(() -> drive.resetGyro(), drive).ignoringDisable(true));
+
+      // Switch to X pattern when X button is pressed
+      joystick.button(4).onTrue(Commands.runOnce(drive::stopWithX, drive));
+    }
+  }
+
+  /**
+   * Use this to pass the autonomous command to the main {@link Robot} class.
+   *
+   * @return the command to run in autonomous
+   */
+  public Command getAutonomousCommand() {
+    return new InstantCommand();
+  }
+
+  public void resetSimulationField() {
+    if (Constants.currentMode != Constants.Mode.SIM) return;
+
+    drive.resetOdometry(new Pose2d(3, 3, new Rotation2d()));
+    SimulatedArena.getInstance().resetFieldForAuto();
+  }
+
+  public void updateSimulation() {
+    if (Constants.currentMode != Constants.Mode.SIM) return;
+
+    SimulatedArena.getInstance().simulationPeriodic();
+    Logger.recordOutput(
+        "FieldSimulation/RobotPosition", driveSimulation.getSimulatedDriveTrainPose());
+    Logger.recordOutput(
+        "FieldSimulation/Fuel", SimulatedArena.getInstance().getGamePiecesArrayByType("Fuel"));
+  }
+}
