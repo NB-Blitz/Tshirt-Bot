@@ -49,6 +49,10 @@ public class VisionConstants {
   public static double linearStdDevBaseline = 0.02; // Meters
   public static double angularStdDevBaseline = 0.06; // Radians
 
+  // Quest data to robot pose transform (x = forward, y = left, z = up)
+  // TODO: Data should be set to the Quest's position relative to the robot center, in meters
+  public static final Transform3d robotToQuest = new Transform3d(0, 0, 0, new Rotation3d());
+
   // Standard deviation multipliers for each camera
   // (Adjust to trust some cameras more than others)
   public static double[] cameraStdDevFactors =
