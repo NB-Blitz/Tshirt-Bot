@@ -165,6 +165,9 @@ public class Vision extends SubsystemBase {
         if (observation.type() == PoseObservationType.MEGATAG_2) {
           linearStdDev *= linearStdDevMegatag2Factor;
           angularStdDev *= angularStdDevMegatag2Factor;
+        } else if (observation.type() == PoseObservationType.QUEST) {
+          linearStdDev *= linearStdDevQuestFactor;
+          angularStdDev *= angularStdDevQuestFactor;
         }
         if (cameraIndex < cameraStdDevFactors.length) {
           linearStdDev *= cameraStdDevFactors[cameraIndex];

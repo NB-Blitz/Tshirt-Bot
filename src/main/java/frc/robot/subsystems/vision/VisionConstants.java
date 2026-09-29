@@ -65,4 +65,8 @@ public class VisionConstants {
   public static double linearStdDevMegatag2Factor = 0.5; // More stable than full 3D solve
   public static double angularStdDevMegatag2Factor =
       Double.POSITIVE_INFINITY; // No rotation data available
+
+  // Multipliers to apply for Quest observations
+  public static double linearStdDevQuestFactor = 1.0;
+  public static double angularStdDevQuestFactor = 1.45;
 }

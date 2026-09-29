@@ -7,8 +7,6 @@
 
 package frc.robot;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -31,6 +29,7 @@ import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionIO;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
+import frc.robot.subsystems.vision.VisionIOQuest;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.littletonrobotics.junction.Logger;
@@ -49,6 +48,7 @@ public class RobotContainer {
   private SwerveDriveSimulation driveSimulation = null;
 
   private final boolean useXboxControllerDrive = true;
+  private final boolean useQuestInSim = true;
 
   // Controllers
   private final CommandJoystick joystick;
@@ -65,6 +65,8 @@ public class RobotContainer {
       driveXboxController = null;
     }
 
+    VisionIOQuest quest = new VisionIOQuest();
+
     switch (Constants.currentMode) {
       case REAL:
         // Real robot, instantiate hardware IO implementations
@@ -75,18 +77,25 @@ public class RobotContainer {
                 new ModuleIOSparkMax(1),
                 new ModuleIOSparkMax(2),
                 new ModuleIOSparkMax(3),
+                quest::setRobotPose,
                 (pose) -> {});
-        vision = new Vision(drive::addVisionMeasurement, new VisionIO() {}, new VisionIO() {});
+        vision =
+            new Vision(
+                drive::addVisionMeasurement,
+                new VisionIO() {},
+                new VisionIO() {},
+                new VisionIO() {});
+        // quest,
         // new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
         // new VisionIOPhotonVision(
         //    VisionConstants.camera1Name, VisionConstants.robotToCamera1));
         break;
 
       case SIM:
+        quest.setRobotPose(Constants.simStartingPose);
         // create a maple-sim swerve drive simulation instance
         this.driveSimulation =
-            new SwerveDriveSimulation(
-                DriveConstants.mapleSimConfig, new Pose2d(3, 3, new Rotation2d()));
+            new SwerveDriveSimulation(DriveConstants.mapleSimConfig, Constants.simStartingPose);
         // add the simulated drivetrain to the simulation field
         SimulatedArena.getInstance().addDriveTrainSimulation(driveSimulation);
         // Sim robot, instantiate physics sim IO implementations
@@ -97,10 +106,13 @@ public class RobotContainer {
                 new ModuleIOSim(driveSimulation.getModules()[1]),
                 new ModuleIOSim(driveSimulation.getModules()[2]),
                 new ModuleIOSim(driveSimulation.getModules()[3]),
+                quest::setRobotPose,
                 driveSimulation::setSimulationWorldPose);
+        VisionIO simQuest = useQuestInSim ? quest : new VisionIO() {};
         vision =
             new Vision(
                 drive::addVisionMeasurement,
+                simQuest,
                 new VisionIOPhotonVisionSim(
                     VisionConstants.camera0Name,
                     VisionConstants.robotToCamera0,
@@ -120,10 +132,16 @@ public class RobotContainer {
                 new ModuleIO() {},
                 new ModuleIO() {},
                 new ModuleIO() {},
+                quest::setRobotPose,
                 (pose) -> {});
         // Replayed robot, disable IO implementations
         // (Use same number of dummy implementations as the real robot)
-        vision = new Vision(drive::addVisionMeasurement, new VisionIO() {}, new VisionIO() {});
+        vision =
+            new Vision(
+                drive::addVisionMeasurement,
+                new VisionIO() {},
+                new VisionIO() {},
+                new VisionIO() {});
         break;
     }
 
@@ -216,7 +234,7 @@ public class RobotContainer {
   public void resetSimulationField() {
     if (Constants.currentMode != Constants.Mode.SIM) return;
 
-    drive.resetOdometry(new Pose2d(3, 3, new Rotation2d()));
+    drive.setPose(Constants.simStartingPose);
     SimulatedArena.getInstance().resetFieldForAuto();
   }
 

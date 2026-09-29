@@ -72,6 +72,7 @@ public class Drive extends SubsystemBase {
       };
   private SwerveDrivePoseEstimator poseEstimator =
       new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
+  private final Consumer<Pose2d> setQuestPoseCallback;
   private final Consumer<Pose2d> resetSimulationPoseCallBack;
   private Field2d fieldPose = new Field2d();
 
@@ -83,8 +84,10 @@ public class Drive extends SubsystemBase {
       ModuleIO frModuleIO,
       ModuleIO blModuleIO,
       ModuleIO brModuleIO,
+      Consumer<Pose2d> setQuestPoseCallback,
       Consumer<Pose2d> resetSimulationPoseCallBack) {
     this.gyroIO = gyroIO;
+    this.setQuestPoseCallback = setQuestPoseCallback;
     this.resetSimulationPoseCallBack = resetSimulationPoseCallBack;
     modules[0] = new Module(flModuleIO, 0);
     modules[1] = new Module(frModuleIO, 1);
@@ -318,6 +321,7 @@ public class Drive extends SubsystemBase {
 
   /** Resets the current odometry pose. */
   public void setPose(Pose2d pose) {
+    setQuestPoseCallback.accept(pose);
     resetSimulationPoseCallBack.accept(pose);
     poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
   }
@@ -343,11 +347,5 @@ public class Drive extends SubsystemBase {
 
   public void resetGyro() {
     setPose(new Pose2d(getPose().getTranslation(), new Rotation2d()));
-  }
-
-  /** Resets the current odometry pose. */
-  public void resetOdometry(Pose2d pose) {
-    resetSimulationPoseCallBack.accept(pose);
-    poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
   }
 }
