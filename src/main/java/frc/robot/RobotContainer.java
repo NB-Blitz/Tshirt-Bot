@@ -28,6 +28,8 @@ import frc.robot.subsystems.drive.ModuleIOSparkMax;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionIO;
+import frc.robot.subsystems.vision.VisionIOLimelight;
+import frc.robot.subsystems.vision.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.subsystems.vision.VisionIOQuest;
 import org.ironmaple.simulation.SimulatedArena;
@@ -48,7 +50,9 @@ public class RobotContainer {
   private SwerveDriveSimulation driveSimulation = null;
 
   private final boolean useXboxControllerDrive = true;
-  private final boolean useQuestInSim = true;
+  private final boolean enableQuest = false;
+  private final boolean enableLimelight = false;
+  private final boolean enablePhoton = false;
 
   // Controllers
   private final CommandJoystick joystick;
@@ -79,16 +83,17 @@ public class RobotContainer {
                 new ModuleIOSparkMax(3),
                 quest::setRobotPose,
                 (pose) -> {});
-        vision =
-            new Vision(
-                drive::addVisionMeasurement,
-                new VisionIO() {},
-                new VisionIO() {},
-                new VisionIO() {});
-        // quest,
-        // new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
-        // new VisionIOPhotonVision(
-        //    VisionConstants.camera1Name, VisionConstants.robotToCamera1));
+        VisionIO questVision = enableQuest ? quest : new VisionIO() {};
+        VisionIO limelight =
+            enableLimelight
+                ? new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation)
+                : new VisionIO() {};
+        VisionIO photon =
+            enablePhoton
+                ? new VisionIOPhotonVision(
+                    VisionConstants.camera1Name, VisionConstants.robotToCamera1)
+                : new VisionIO() {};
+        vision = new Vision(drive::addVisionMeasurement, questVision, limelight, photon);
         break;
 
       case SIM:
@@ -108,7 +113,7 @@ public class RobotContainer {
                 new ModuleIOSim(driveSimulation.getModules()[3]),
                 quest::setRobotPose,
                 driveSimulation::setSimulationWorldPose);
-        VisionIO simQuest = useQuestInSim ? quest : new VisionIO() {};
+        VisionIO simQuest = enableQuest ? quest : new VisionIO() {};
         vision =
             new Vision(
                 drive::addVisionMeasurement,
