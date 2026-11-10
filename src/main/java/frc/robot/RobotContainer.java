@@ -27,6 +27,7 @@ import frc.robot.subsystems.drive.GyroIOSim;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOSparkMax;
+import frc.robot.subsystems.vision.QuestNavSubsystem;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionIO;
@@ -44,6 +45,7 @@ import org.littletonrobotics.junction.Logger;
 public class RobotContainer {
   // Subsystems
   private final Drive drive;
+  private final QuestNavSubsystem questNavSubsystem;
   private final Vision vision;
 
   private SwerveDriveSimulation driveSimulation = null;
@@ -80,6 +82,7 @@ public class RobotContainer {
         // new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
         // new VisionIOPhotonVision(
         //    VisionConstants.camera1Name, VisionConstants.robotToCamera1));
+        questNavSubsystem = new QuestNavSubsystem(drive);
         break;
 
       case SIM:
@@ -104,11 +107,12 @@ public class RobotContainer {
                 new VisionIOPhotonVisionSim(
                     VisionConstants.camera0Name,
                     VisionConstants.robotToCamera0,
-                    driveSimulation::getSimulatedDriveTrainPose),
-                new VisionIOPhotonVisionSim(
-                    VisionConstants.camera1Name,
-                    VisionConstants.robotToCamera1,
                     driveSimulation::getSimulatedDriveTrainPose));
+        questNavSubsystem = new QuestNavSubsystem(drive);
+        // new VisionIOPhotonVisionSim(
+        //     VisionConstants.camera1Name,
+        //     VisionConstants.robotToCamera1,
+        //     driveSimulation::getSimulatedDriveTrainPose));
         break;
 
       default:
@@ -124,6 +128,7 @@ public class RobotContainer {
         // Replayed robot, disable IO implementations
         // (Use same number of dummy implementations as the real robot)
         vision = new Vision(drive::addVisionMeasurement, new VisionIO() {}, new VisionIO() {});
+        questNavSubsystem = new QuestNavSubsystem(drive);
         break;
     }
 

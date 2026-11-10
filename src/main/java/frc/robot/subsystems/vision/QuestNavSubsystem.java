@@ -24,7 +24,8 @@ public class QuestNavSubsystem extends SubsystemBase {
           0.02, // TODO: replace with actual y-axis standard deviations
           0.0872665); // TODO: replace with actual z-axis standard deviations
 
-  public QuestNavSubsystem() {
+  public QuestNavSubsystem(Drive drive) {
+    this.drive = drive;
     questNav.onCommandSuccess(
         response ->
             System.out.println("Pose reset succeeded for command ID: " + response.getCommandId()));
